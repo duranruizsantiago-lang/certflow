@@ -24,8 +24,8 @@ export default function RegisterPage() {
       });
       localStorage.setItem("token", data.token);
       router.push("/overview");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unexpected error");
     } finally {
       setLoading(false);
     }
