@@ -45,6 +45,9 @@ func (e *Engine) RunScan(ctx context.Context, connectorID string, orgID string) 
 			return nil, err
 		}
 		evidence, err = gcp.Collect(ctx, connectorID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to collect evidence: %w", err)
+		}
 
 	case models.ConnectorAWS:
 		aws, err := connectors.NewAWSConnector(configJSON)
@@ -52,6 +55,9 @@ func (e *Engine) RunScan(ctx context.Context, connectorID string, orgID string) 
 			return nil, err
 		}
 		evidence, err = aws.Collect(ctx, connectorID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to collect evidence: %w", err)
+		}
 
 	case models.ConnectorAzure:
 		az, err := connectors.NewAzureConnector(configJSON)
@@ -59,6 +65,9 @@ func (e *Engine) RunScan(ctx context.Context, connectorID string, orgID string) 
 			return nil, err
 		}
 		evidence, err = az.Collect(ctx, connectorID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to collect evidence: %w", err)
+		}
 
 	default:
 		return nil, fmt.Errorf("unsupported connector type: %s", cType)
@@ -87,7 +96,9 @@ func (e *Engine) RunScan(ctx context.Context, connectorID string, orgID string) 
 	}
 
 	// Update connector last_scan_at
-	e.store.Pool.Exec(ctx, "UPDATE connectors SET last_scan_at = $1, status = 'connected' WHERE id = $2", time.Now(), connectorID)
+	if _, err := e.store.Pool.Exec(ctx, "UPDATE connectors SET last_scan_at = $1, status = 'connected' WHERE id = $2", time.Now(), connectorID); err != nil {
+		log.Printf("failed to update connector scan status: %v", err)
+	}
 
 	return &models.ScanResult{
 		ConnectorID: connUUID,
@@ -119,7 +130,9 @@ func (e *Engine) CalculateScores(ctx context.Context, orgID string) ([]models.Co
 	for rows.Next() {
 		var fw, status string
 		var count int
-		rows.Scan(&fw, &status, &count)
+		if err := rows.Scan(&fw, &status, &count); err != nil {
+			return nil, fmt.Errorf("failed to scan score row: %w", err)
+		}
 		cf := models.ControlFramework(fw)
 		if frameworks[cf] == nil {
 			frameworks[cf] = map[string]int{}
