@@ -101,22 +101,31 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 	var org models.Organization
-	s.store.Pool.QueryRow(ctx, "SELECT id, name, created_at, updated_at FROM organizations WHERE id = $1", claims.OrganizationID).
-		Scan(&org.ID, &org.Name, &org.CreatedAt, &org.UpdatedAt)
+	if err := s.store.Pool.QueryRow(ctx, "SELECT id, name, created_at, updated_at FROM organizations WHERE id = $1", claims.OrganizationID).
+		Scan(&org.ID, &org.Name, &org.CreatedAt, &org.UpdatedAt); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load organization")
+		return
+	}
 
 	// Count evidence
 	var evidenceCount int
-	s.store.Pool.QueryRow(ctx,
+	if err := s.store.Pool.QueryRow(ctx,
 		"SELECT COUNT(*) FROM evidence e JOIN connectors c ON e.connector_id = c.id WHERE c.organization_id = $1",
 		claims.OrganizationID,
-	).Scan(&evidenceCount)
+	).Scan(&evidenceCount); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to count evidence")
+		return
+	}
 
 	// Count connectors
 	var connectorCount int
-	s.store.Pool.QueryRow(ctx,
+	if err := s.store.Pool.QueryRow(ctx,
 		"SELECT COUNT(*) FROM connectors WHERE organization_id = $1",
 		claims.OrganizationID,
-	).Scan(&connectorCount)
+	).Scan(&connectorCount); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to count connectors")
+		return
+	}
 
 	// Get scores
 	scores := s.calculateScores(ctx, claims.OrganizationID)
@@ -203,7 +212,9 @@ func (s *Server) handleListConnectors(w http.ResponseWriter, r *http.Request) {
 	connectors := []models.Connector{}
 	for rows.Next() {
 		var c models.Connector
-		rows.Scan(&c.ID, &c.OrganizationID, &c.Name, &c.Type, &c.Config, &c.Status, &c.LastScanAt, &c.CreatedAt)
+		if err := rows.Scan(&c.ID, &c.OrganizationID, &c.Name, &c.Type, &c.Config, &c.Status, &c.LastScanAt, &c.CreatedAt); err != nil {
+			continue
+		}
 		connectors = append(connectors, c)
 	}
 
@@ -280,7 +291,9 @@ func (s *Server) handleListEvidence(w http.ResponseWriter, r *http.Request) {
 	evidence := []models.Evidence{}
 	for rows.Next() {
 		var e models.Evidence
-		rows.Scan(&e.ID, &e.ControlID, &e.ConnectorID, &e.Resource, &e.Status, &e.Finding, &e.CollectedAt)
+		if err := rows.Scan(&e.ID, &e.ControlID, &e.ConnectorID, &e.Resource, &e.Status, &e.Finding, &e.CollectedAt); err != nil {
+			continue
+		}
 		evidence = append(evidence, e)
 	}
 
