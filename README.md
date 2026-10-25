@@ -33,6 +33,8 @@ open http://localhost:3000/login
 # Password: Demo1234!
 ```
 
+> **Demo credentials:** the account above is created locally by the seed script and only exists in your local Docker demo. It is fictional and does not work on any deployed service.
+
 The seed script populates the platform with simulated GCP & AWS scans. You'll see a live compliance dashboard with evidence across NIS2, DORA, ISO 27001, and ENS frameworks.
 
 ---
